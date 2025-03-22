@@ -6,7 +6,14 @@
     <title>BK Jeweller's Daybook</title>
     <link rel="stylesheet" href="styles.css" />
     <style>
-      /* Style for login form */
+      /* ======================== */
+      /* GENERAL & LOGIN STYLES   */
+      /* ======================== */
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #f9f9f9;
+      }
       #login-container {
         max-width: 400px;
         margin: 100px auto;
@@ -42,20 +49,50 @@
       #login-container button:hover {
         background-color: #c9a32c;
       }
-      /* Style for logout button */
+      /* ======================== */
+      /* APP & HEADER STYLES      */
+      /* ======================== */
+      #app-container {
+        display: none;
+        margin: 20px;
+      }
+      header {
+        background-color: #d4af37;
+        color: #fff;
+        padding: 10px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      header h1 {
+        margin: 0;
+      }
       #logout-btn {
         background-color: #d4af37;
         color: #fff;
         border: none;
         padding: 8px 16px;
-        margin-left: 20px;
         cursor: pointer;
         border-radius: 4px;
       }
       #logout-btn:hover {
         background-color: #c9a32c;
       }
-      /* Style the search bar */
+      /* ======================== */
+      /* CASH SECTION             */
+      /* ======================== */
+      #cash-container {
+        margin: 20px 0;
+      }
+      /* ======================== */
+      /* SEARCH BAR               */
+      /* ======================== */
+      .search-container {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin-bottom: 10px;
+      }
       #search-bar {
         width: 300px;
         padding: 10px;
@@ -68,25 +105,112 @@
         color: #bbb;
         font-style: italic;
       }
-      /* Container for search bar (aligned to right) */
-      .search-container {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        margin-bottom: 10px;
+      /* ======================== */
+      /* DAYBOOK ENTRY FORM       */
+      /* ======================== */
+      form {
+        margin-bottom: 20px;
+        background: #fff;
+        padding: 15px;
+        border: 2px solid #d4af37;
+        border-radius: 8px;
       }
-      /* Optional table styling */
+      form label {
+        display: block;
+        margin-bottom: 5px;
+      }
+      form input, form select {
+        width: 100%;
+        margin-bottom: 10px;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      form button {
+        padding: 10px 20px;
+        background-color: #d4af37;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      form button:hover {
+        background-color: #c9a32c;
+      }
+      /* ======================== */
+      /* TABLE STYLES             */
+      /* ======================== */
       #daybook-table {
         width: 100%;
         border-collapse: collapse;
+        background: #fff;
       }
       #daybook-table th,
       #daybook-table td {
         border: 1px solid #ddd;
         padding: 8px;
+        text-align: left;
       }
       #daybook-table th {
         background-color: #f2f2f2;
+      }
+      /* ======================== */
+      /* PAGINATION STYLES        */
+      /* ======================== */
+      #pagination-container {
+        text-align: center;
+        margin-top: 1rem;
+      }
+      #pagination-container button {
+        padding: 8px 16px;
+        margin: 0 10px;
+        border: none;
+        background-color: #d4af37;
+        color: #fff;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      #pagination-container button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+      /* ======================== */
+      /* PRINT SECTION (AT THE END) */
+      /* ======================== */
+      .print-section {
+        margin-top: 20px;
+        padding: 15px;
+        border: 2px solid #d4af37;
+        border-radius: 8px;
+        background: #fff;
+      }
+      .print-section h3 {
+        margin-bottom: 10px;
+      }
+      .print-section label {
+        margin-right: 10px;
+      }
+      .date-inputs {
+        display: none;
+        margin-top: 10px;
+      }
+      .date-inputs input {
+        margin-right: 10px;
+        padding: 5px;
+        border: 1px solid #d4af37;
+        border-radius: 4px;
+      }
+      button.print-btn {
+        padding: 10px 20px;
+        background-color: #d4af37;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+      button.print-btn:hover {
+        background-color: #c9a32c;
       }
     </style>
   </head>
@@ -103,21 +227,24 @@
       </form>
     </div>
 
-    <!-- App Container (Hidden until login succeeds) -->
+    <!-- App Container (Shown after successful login) -->
     <div id="app-container" style="display: none;">
       <header>
         <h1>BK Jeweller's Daybook</h1>
-        <!-- Logout button -->
         <button id="logout-btn">Logout</button>
       </header>
       <main>
+        <!-- Cash in Hand Section -->
         <div id="cash-container">
           <h3>Cash in Hand: ₹<span id="cash-in-hand">0</span></h3>
         </div>
+
+        <!-- Search Bar -->
         <div class="search-container">
-          <!-- Search Bar -->
           <input type="text" id="search-bar" placeholder="Search by date (YYYY-MM-DD) or description" />
         </div>
+
+        <!-- Daybook Entry Form -->
         <form id="daybook-form">
           <label for="description">Description:</label>
           <input type="text" id="description" placeholder="e.g., Sale of Gold" required />
@@ -130,6 +257,8 @@
           </select>
           <button type="submit">Add Entry</button>
         </form>
+
+        <!-- Records Table -->
         <section>
           <table id="daybook-table">
             <thead>
@@ -146,10 +275,32 @@
             </tbody>
           </table>
         </section>
-        <div id="pagination-container" style="text-align: center; margin-top: 1rem;">
+
+        <!-- Pagination Controls -->
+        <div id="pagination-container">
           <button id="prev-page-btn" disabled>Previous</button>
           <span id="page-info">Page 1</span>
           <button id="next-page-btn">Next</button>
+        </div>
+
+        <!-- Print Section (Located at the end) -->
+        <div class="print-section">
+          <h3>Print Options</h3>
+          <label>
+            <input type="radio" name="print-option" value="today" checked />
+            Today Only
+          </label>
+          <label>
+            <input type="radio" name="print-option" value="custom" />
+            Custom Dates
+          </label>
+          <div class="date-inputs">
+            <label for="start-date">Start Date:</label>
+            <input type="date" id="start-date" />
+            <label for="end-date">End Date:</label>
+            <input type="date" id="end-date" />
+          </div>
+          <button type="button" class="print-btn" id="print-btn">Print</button>
         </div>
       </main>
     </div>
@@ -157,7 +308,7 @@
     <!-- Firebase Compat Libraries -->
     <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-database-compat.js"></script>
-    <!-- Our main script -->
+    <!-- Our Main Script -->
     <script src="script.js"></script>
   </body>
 </html>

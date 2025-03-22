@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BK Jeweller's Daybook</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      /* Style for login form */
+      #login-container {
+        max-width: 400px;
+        margin: 100px auto;
+        padding: 20px;
+        border: 2px solid #d4af37;
+        border-radius: 8px;
+        background: #fff;
+        text-align: center;
+      }
+      #login-container h2 {
+        margin-bottom: 1rem;
+      }
+      #login-container label {
+        display: block;
+        text-align: left;
+        margin: 0.5rem 0 0.25rem;
+      }
+      #login-container input {
+        width: 95%;
+        padding: 8px;
+        margin-bottom: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      #login-container button {
+        padding: 10px 20px;
+        background-color: #d4af37;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      #login-container button:hover {
+        background-color: #c9a32c;
+      }
+      /* Style for logout button */
+      #logout-btn {
+        background-color: #d4af37;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        margin-left: 20px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      #logout-btn:hover {
+        background-color: #c9a32c;
+      }
+      /* Style the search bar */
+      #search-bar {
+        width: 300px;
+        padding: 10px;
+        border: 1px solid #d4af37;
+        border-radius: 4px;
+        font-size: 14px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      #search-bar::placeholder {
+        color: #bbb;
+        font-style: italic;
+      }
+      /* Container for search bar (aligned to right) */
+      .search-container {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      /* Optional table styling */
+      #daybook-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      #daybook-table th,
+      #daybook-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+      }
+      #daybook-table th {
+        background-color: #f2f2f2;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Login Container -->
+    <div id="login-container">
+      <h2>Login</h2>
+      <form id="login-form">
+        <label for="username">Username:</label>
+        <input type="text" id="username" placeholder="Enter username" required />
+        <label for="password">Password:</label>
+        <input type="password" id="password" placeholder="Enter password" required />
+        <button type="submit">Login</button>
+      </form>
+    </div>
+
+    <!-- App Container (Hidden until login succeeds) -->
+    <div id="app-container" style="display: none;">
+      <header>
+        <h1>BK Jeweller's Daybook</h1>
+        <!-- Logout button -->
+        <button id="logout-btn">Logout</button>
+      </header>
+      <main>
+        <div id="cash-container">
+          <h3>Cash in Hand: ₹<span id="cash-in-hand">0</span></h3>
+        </div>
+        <div class="search-container">
+          <!-- Search Bar -->
+          <input type="text" id="search-bar" placeholder="Search by date (YYYY-MM-DD) or description" />
+        </div>
+        <form id="daybook-form">
+          <label for="description">Description:</label>
+          <input type="text" id="description" placeholder="e.g., Sale of Gold" required />
+          <label for="amount">Amount:</label>
+          <input type="number" id="amount" placeholder="e.g., 5000" required />
+          <label for="type">Type:</label>
+          <select id="type" required>
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+          </select>
+          <button type="submit">Add Entry</button>
+        </form>
+        <section>
+          <table id="daybook-table">
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Type</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Records will be dynamically added here -->
+            </tbody>
+          </table>
+        </section>
+        <div id="pagination-container" style="text-align: center; margin-top: 1rem;">
+          <button id="prev-page-btn" disabled>Previous</button>
+          <span id="page-info">Page 1</span>
+          <button id="next-page-btn">Next</button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Firebase Compat Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-database-compat.js"></script>
+    <!-- Our main script -->
+    <script src="script.js"></script>
+  </body>
+</html>

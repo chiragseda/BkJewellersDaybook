@@ -109,7 +109,7 @@ searchBarInput.addEventListener("input", (e) => {
   displayFilteredEntries();
 });
 
-// --- Display Filtered Records ---
+// --- Display Functions ---
 function displayFilteredEntries() {
   tableBody.innerHTML = "";
   filteredEntries.forEach(entry => {
@@ -123,6 +123,41 @@ function displayFilteredEntries() {
       entry.id
     );
   });
+}
+
+function displayTodayEntries() {
+  tableBody.innerHTML = "";
+  todayEntries.forEach(entry => {
+    addEntryToTable(
+      entry.date,
+      entry.time,
+      entry.description,
+      entry.amount,
+      entry.type,
+      false,
+      entry.id
+    );
+  });
+}
+
+function displayPaginatedEntries() {
+  const startIndex = (currentPage - 1) * entriesPerPage;
+  const endIndex = startIndex + entriesPerPage;
+  const paginatedEntries = olderEntries.slice(startIndex, endIndex);
+  paginatedEntries.forEach(entry => {
+    addEntryToTable(
+      entry.date,
+      entry.time,
+      entry.description,
+      entry.amount,
+      entry.type,
+      false,
+      entry.id
+    );
+  });
+  pageInfo.textContent = `Page ${currentPage}`;
+  prevPageBtn.disabled = currentPage === 1;
+  nextPageBtn.disabled = endIndex >= olderEntries.length;
 }
 
 // --- Load Records from Firebase ---
@@ -159,43 +194,6 @@ function loadEntriesFromFirebase() {
       displayFilteredEntries();
     }
   });
-}
-
-// --- Display Today's Records ---
-function displayTodayEntries() {
-  tableBody.innerHTML = "";
-  todayEntries.forEach(entry => {
-    addEntryToTable(
-      entry.date,
-      entry.time,
-      entry.description,
-      entry.amount,
-      entry.type,
-      false,
-      entry.id
-    );
-  });
-}
-
-// --- Display Paginated Older Records ---
-function displayPaginatedEntries() {
-  const startIndex = (currentPage - 1) * entriesPerPage;
-  const endIndex = startIndex + entriesPerPage;
-  const paginatedEntries = olderEntries.slice(startIndex, endIndex);
-  paginatedEntries.forEach(entry => {
-    addEntryToTable(
-      entry.date,
-      entry.time,
-      entry.description,
-      entry.amount,
-      entry.type,
-      false,
-      entry.id
-    );
-  });
-  pageInfo.textContent = `Page ${currentPage}`;
-  prevPageBtn.disabled = currentPage === 1;
-  nextPageBtn.disabled = endIndex >= olderEntries.length;
 }
 
 // --- Pagination Controls ---
@@ -253,7 +251,10 @@ function addEntryToTable(date, time, description, amount, type, save = true, id 
     editEntry(row, amount, type, id);
   });
   row.querySelector(".delete-btn").addEventListener("click", () => {
-    deleteEntry(row, amount, type, id);
+    // Delete action: prompt confirmation before deleting.
+    if (confirm("Are you sure you want to delete this record?")) {
+      deleteEntry(row, amount, type, id);
+    }
   });
   tableBody.appendChild(row);
   if (save) {
@@ -415,3 +416,8 @@ function printFilteredRecords(records) {
     setTimeout(() => { printWindow.close(); URL.revokeObjectURL(url); }, 1000);
   };
 }
+
+// --- Final Initialization (Load Entries Again) ---
+document.addEventListener("DOMContentLoaded", () => {
+  loadEntriesFromFirebase();
+});

@@ -67,7 +67,6 @@ function handleSessionExpiry() {
     document.getElementById("login-container").style.display = "block";
   }
 }
-
 // Check session expiry every 5 minutes
 setInterval(handleSessionExpiry, 5 * 60 * 1000);
 
@@ -145,6 +144,7 @@ function displayTodayEntries() {
 }
 
 function displayPaginatedEntries() {
+  // Only paginate older entries
   const startIndex = (currentPage - 1) * entriesPerPage;
   const endIndex = startIndex + entriesPerPage;
   const paginatedEntries = olderEntries.slice(startIndex, endIndex);
@@ -204,6 +204,7 @@ prevPageBtn.addEventListener("click", () => {
     displayPaginatedEntries();
   }
 });
+
 nextPageBtn.addEventListener("click", () => {
   const totalPages = Math.ceil(olderEntries.length / entriesPerPage);
   if (currentPage < totalPages) {
@@ -250,7 +251,6 @@ function addEntryToTable(date, time, description, amount, type, save = true, id 
     editEntry(row, amount, type, id);
   });
   row.querySelector(".delete-btn").addEventListener("click", () => {
-    // Delete action: prompt confirmation before deleting.
     if (confirm("Are you sure you want to delete this record?")) {
       deleteEntry(row, amount, type, id);
     }
@@ -318,8 +318,9 @@ document.getElementById("print-btn").addEventListener("click", () => {
       alert("Please select both start and end dates for custom printing.");
       return;
     }
-    const startDate = new Date(startDateStr);
-    const endDate = new Date(endDateStr);
+    // Parse custom dates as local dates spanning the full day.
+    const startDate = new Date(startDateStr + "T00:00:00");
+    const endDate = new Date(endDateStr + "T23:59:59");
     filteredRecords = filterRecordsByDateRange(startDate, endDate, allRecords);
   }
   printFilteredRecords(filteredRecords);
@@ -327,7 +328,8 @@ document.getElementById("print-btn").addEventListener("click", () => {
 
 function filterRecordsByDateRange(startDate, endDate, records) {
   return records.filter(record => {
-    const recordDate = new Date(record.date);
+    // Parse the record date by appending T00:00:00 to enforce local time interpretation.
+    const recordDate = new Date(record.date + "T00:00:00");
     return recordDate >= startDate && recordDate <= endDate;
   });
 }
@@ -338,63 +340,219 @@ function printFilteredRecords(records) {
     return;
   }
   
-  // Calculate totals from filtered records.
-  let totalIncome = 0;
-  let totalExpense = 0;
-  records.forEach(record => {
-    if (record.type.toLowerCase() === "income") {
-      totalIncome += record.amount;
-    } else if (record.type.toLowerCase() === "expense") {
-      totalExpense += record.amount;
-    }
-  });
-  const netCashInHand = totalIncome - totalExpense;
+  // For today's report, if all records are from currentDate, use separate tables.
+  const isTodayReport = records.every(record => record.date === currentDate);
+  let printContent = "";
+  let reportHeader = "";
   
-  const printContent = `
-    <html>
-      <head>
-        <title>BK Jewellers</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          h1 { text-align: center; color: #d4af37; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          table, th, td { border: 1px solid #d4af37; }
-          th { background-color: #d4af37; color: #fff; padding: 8px; }
-          td { padding: 8px; text-align: left; }
-          .totals { margin-top: 20px; font-size: 18px; }
-          .totals p { margin: 5px 0; }
-        </style>
-      </head>
-      <body>
-        <h1>BK Jeweller's Daybook</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Amount</th>
-              <th>Type</th>
+  if (isTodayReport) {
+    const incomeRecords = records.filter(record => record.type.toLowerCase() === "income");
+    const expenseRecords = records.filter(record => record.type.toLowerCase() === "expense");
+    
+    const todayIncomeTotal = incomeRecords.reduce((sum, rec) => sum + parseFloat(rec.amount), 0);
+    const todayExpenseTotal = expenseRecords.reduce((sum, rec) => sum + parseFloat(rec.amount), 0);
+    
+    // Calculate carry forward from older entries.
+    let carryForward = 0;
+    olderEntries.forEach(rec => {
+      const amt = parseFloat(rec.amount) || 0;
+      if (rec.type.toLowerCase() === "income") carryForward += amt;
+      else if (rec.type.toLowerCase() === "expense") carryForward -= amt;
+    });
+    const netCashInHand = carryForward + (todayIncomeTotal - todayExpenseTotal);
+    
+    reportHeader = `<h1>BK Jeweller's Daybook - Report for ${currentDate}</h1>`;
+    
+    const incomeTable = `
+      <h2>Income Transactions</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${incomeRecords.map(rec => `
+            <tr style="background-color: #dff0d8; color: #3c763d;">
+              <td>${rec.date}</td>
+              <td>${rec.description}</td>
+              <td>₹${parseFloat(rec.amount).toFixed(2)}</td>
             </tr>
-          </thead>
-          <tbody>
-            ${records.map(record => `
-              <tr>
-                <td>${record.date}</td>
-                <td>${record.description}</td>
-                <td>₹${record.amount.toFixed(2)}</td>
-                <td>${record.type}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <div class="totals">
-          <p><strong>Total Income:</strong> ₹${totalIncome.toFixed(2)}</p>
-          <p><strong>Total Expense:</strong> ₹${totalExpense.toFixed(2)}</p>
-          <p><strong>Net Cash in Hand:</strong> ₹${netCashInHand.toFixed(2)}</p>
-        </div>
-      </body>
-    </html>
-  `;
+          `).join('')}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2"><strong>Total Income</strong></td>
+            <td><strong>₹${todayIncomeTotal.toFixed(2)}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
+    
+    const expenseTable = `
+      <h2>Expense Transactions</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${expenseRecords.map(rec => `
+            <tr style="background-color: #f2dede; color: #a94442;">
+              <td>${rec.date}</td>
+              <td>${rec.description}</td>
+              <td>₹${parseFloat(rec.amount).toFixed(2)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2"><strong>Total Expense</strong></td>
+            <td><strong>₹${todayExpenseTotal.toFixed(2)}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
+    
+    const summarySection = `
+      <div class="totals">
+        <p><strong>Carry Forward Cash:</strong> ₹${carryForward.toFixed(2)}</p>
+        <p><strong>Today's Net:</strong> ₹${(todayIncomeTotal - todayExpenseTotal).toFixed(2)}</p>
+        <p><strong>Total Cash in Hand:</strong> ₹${netCashInHand.toFixed(2)}</p>
+      </div>
+    `;
+    
+    printContent = `
+      <html>
+        <head>
+        <title>BK Jewellers</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1, h2 { text-align: center; color: #d4af37; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            table, th, td { border: 1px solid #d4af37; }
+            th { background-color: #d4af37; color: #fff; padding: 8px; }
+            td { padding: 8px; text-align: left; }
+            tfoot td { border-top: 2px solid #000; }
+            .totals { margin-top: 20px; font-size: 18px; text-align: center; }
+            .totals p { margin: 5px 0; }
+          </style>
+        </head>
+        <body>
+          ${reportHeader}
+          ${incomeTable}
+          ${expenseTable}
+          ${summarySection}
+        </body>
+      </html>
+    `;
+    
+  } else {
+    // For custom reports: build two separate tables, similar to today's report.
+    const sortedDates = records.map(record => record.date).sort();
+    const customStartDate = sortedDates[0];
+    const customEndDate = sortedDates[sortedDates.length - 1];
+    const reportHeader = `<h1>BK Jeweller's Daybook - Report (${customStartDate} to ${customEndDate})</h1>`;
+    
+    const incomeRecords = records.filter(record => record.type.toLowerCase() === "income");
+    const expenseRecords = records.filter(record => record.type.toLowerCase() === "expense");
+    
+    const totalIncome = incomeRecords.reduce((sum, rec) => sum + parseFloat(rec.amount), 0);
+    const totalExpense = expenseRecords.reduce((sum, rec) => sum + parseFloat(rec.amount), 0);
+    const netCashInHand = totalIncome - totalExpense;
+    
+    const incomeTable = `
+      <h2>Income Transactions</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${incomeRecords.map(rec => `
+            <tr style="background-color: #dff0d8; color: #3c763d;">
+              <td>${rec.date}</td>
+              <td>${rec.description}</td>
+              <td>₹${parseFloat(rec.amount).toFixed(2)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2"><strong>Total Income</strong></td>
+            <td><strong>₹${totalIncome.toFixed(2)}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
+    
+    const expenseTable = `
+      <h2>Expense Transactions</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${expenseRecords.map(rec => `
+            <tr style="background-color: #f2dede; color: #a94442;">
+              <td>${rec.date}</td>
+              <td>${rec.description}</td>
+              <td>₹${parseFloat(rec.amount).toFixed(2)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2"><strong>Total Expense</strong></td>
+            <td><strong>₹${totalExpense.toFixed(2)}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
+    
+    const summarySection = `
+      <div class="totals">
+        <p><strong>Net Cash in Hand:</strong> ₹${netCashInHand.toFixed(2)}</p>
+      </div>
+    `;
+    
+    printContent = `
+      <html>
+        <head>
+          <title>BK Jeweller's Daybook</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1, h2 { text-align: center; color: #d4af37; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            table, th, td { border: 1px solid #d4af37; }
+            th { background-color: #d4af37; color: #fff; padding: 8px; }
+            td { padding: 8px; text-align: left; }
+            tfoot td { border-top: 2px solid #000; }
+            .totals { margin-top: 20px; font-size: 18px; text-align: center; }
+            .totals p { margin: 5px 0; }
+          </style>
+        </head>
+        <body>
+          ${reportHeader}
+          ${incomeTable}
+          ${expenseTable}
+          ${summarySection}
+        </body>
+      </html>
+    `;
+  }
   
   // Create a Blob and generate an object URL.
   const blob = new Blob([printContent], { type: 'text/html;charset=utf-8' });

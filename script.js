@@ -54,8 +54,26 @@ function attachPrintOptionListeners() {
   });
 }
 
+// --- Session Expiration Logic ---
+function handleSessionExpiry() {
+  const loginTime = parseInt(localStorage.getItem("loginTime") || "0");
+  const now = Date.now();
+  const sessionDuration = 48 * 60 * 60 * 1000; // 48 hours in milliseconds
+  if (now - loginTime > sessionDuration) {
+    localStorage.removeItem("loggedIn");
+    localStorage.removeItem("loginTime");
+    alert("Session expired. Please log in again.");
+    document.getElementById("app-container").style.display = "none";
+    document.getElementById("login-container").style.display = "block";
+  }
+}
+
+// Check session expiry every 5 minutes
+setInterval(handleSessionExpiry, 5 * 60 * 1000);
+
 // --- DOMContentLoaded Initialization ---
 document.addEventListener("DOMContentLoaded", () => {
+  handleSessionExpiry();
   if (localStorage.getItem("loggedIn") === "true") {
     document.getElementById("login-container").style.display = "none";
     document.getElementById("app-container").style.display = "block";
@@ -77,6 +95,7 @@ document.getElementById("login-form").addEventListener("submit", (e) => {
   const password = document.getElementById("password").value;
   if (username === defaultUsername && password === defaultPassword) {
     localStorage.setItem("loggedIn", "true");
+    localStorage.setItem("loginTime", Date.now());
     document.getElementById("login-container").style.display = "none";
     document.getElementById("app-container").style.display = "block";
   } else {
@@ -86,6 +105,7 @@ document.getElementById("login-form").addEventListener("submit", (e) => {
 
 document.getElementById("logout-btn").addEventListener("click", () => {
   localStorage.removeItem("loggedIn");
+  localStorage.removeItem("loginTime");
   document.getElementById("app-container").style.display = "none";
   document.getElementById("login-container").style.display = "block";
   document.getElementById("username").value = "";
@@ -113,30 +133,14 @@ searchBarInput.addEventListener("input", (e) => {
 function displayFilteredEntries() {
   tableBody.innerHTML = "";
   filteredEntries.forEach(entry => {
-    addEntryToTable(
-      entry.date,
-      entry.time,
-      entry.description,
-      entry.amount,
-      entry.type,
-      false,
-      entry.id
-    );
+    addEntryToTable(entry.date, entry.time, entry.description, entry.amount, entry.type, false, entry.id);
   });
 }
 
 function displayTodayEntries() {
   tableBody.innerHTML = "";
   todayEntries.forEach(entry => {
-    addEntryToTable(
-      entry.date,
-      entry.time,
-      entry.description,
-      entry.amount,
-      entry.type,
-      false,
-      entry.id
-    );
+    addEntryToTable(entry.date, entry.time, entry.description, entry.amount, entry.type, false, entry.id);
   });
 }
 
@@ -145,15 +149,7 @@ function displayPaginatedEntries() {
   const endIndex = startIndex + entriesPerPage;
   const paginatedEntries = olderEntries.slice(startIndex, endIndex);
   paginatedEntries.forEach(entry => {
-    addEntryToTable(
-      entry.date,
-      entry.time,
-      entry.description,
-      entry.amount,
-      entry.type,
-      false,
-      entry.id
-    );
+    addEntryToTable(entry.date, entry.time, entry.description, entry.amount, entry.type, false, entry.id);
   });
   pageInfo.textContent = `Page ${currentPage}`;
   prevPageBtn.disabled = currentPage === 1;
@@ -171,14 +167,17 @@ function loadEntriesFromFirebase() {
     let calculatedCash = 0;
     if (data) {
       Object.entries(data).forEach(([id, entry]) => {
-        // Compare using standardized "YYYY-MM-DD" format
-        if (entry.date === currentDate) {
+        const entryDate = entry.date;
+        const entryAmount = parseFloat(entry.amount) || 0;
+        // Calculate cash from all entries
+        if (entry.type.toLowerCase() === "income") {
+          calculatedCash += entryAmount;
+        } else if (entry.type.toLowerCase() === "expense") {
+          calculatedCash -= entryAmount;
+        }
+        // Categorize entries by date
+        if (entryDate === currentDate) {
           todayEntries.push({ id, ...entry });
-          if (entry.type.toLowerCase() === "income") {
-            calculatedCash += entry.amount;
-          } else if (entry.type.toLowerCase() === "expense") {
-            calculatedCash -= entry.amount;
-          }
         } else {
           olderEntries.push({ id, ...entry });
         }
@@ -292,7 +291,6 @@ function deleteEntry(row, amount, type, id) {
 }
 
 // --- PRINT FUNCTIONALITY ---
-// Attach event listeners to print-option radio buttons to toggle custom date inputs.
 function attachPrintOptionListeners() {
   const printOptionRadios = document.querySelectorAll('input[name="print-option"]');
   const dateInputs = document.querySelector(".date-inputs");
@@ -307,7 +305,6 @@ function attachPrintOptionListeners() {
   });
 }
 
-// When the Print button is clicked.
 document.getElementById("print-btn").addEventListener("click", () => {
   const selectedOption = document.querySelector('input[name="print-option"]:checked').value;
   let filteredRecords = [];
@@ -328,7 +325,6 @@ document.getElementById("print-btn").addEventListener("click", () => {
   printFilteredRecords(filteredRecords);
 });
 
-// Filter records within a specified date range.
 function filterRecordsByDateRange(startDate, endDate, records) {
   return records.filter(record => {
     const recordDate = new Date(record.date);
@@ -336,15 +332,13 @@ function filterRecordsByDateRange(startDate, endDate, records) {
   });
 }
 
-// Print the filtered records using a Blob URL.
-// The print preview window now stays open for review.
 function printFilteredRecords(records) {
   if (records.length === 0) {
     alert("No records found for the selected range.");
     return;
   }
   
-  // Calculate totals.
+  // Calculate totals from filtered records.
   let totalIncome = 0;
   let totalExpense = 0;
   records.forEach(record => {
@@ -356,8 +350,7 @@ function printFilteredRecords(records) {
   });
   const netCashInHand = totalIncome - totalExpense;
   
-  // Build the printable HTML with inline styles.
-  let printContent = `
+  const printContent = `
     <html>
       <head>
         <title>BK Jewellers</title>
@@ -411,13 +404,12 @@ function printFilteredRecords(records) {
   printWindow.onload = function() {
     printWindow.focus();
     printWindow.print();
-    // Let the user close the print preview manually after printing.
-    // Optionally, if you want to close automatically, uncomment the next line after a delay:
+    // Uncomment the below line if you want to auto-close the print preview after printing.
     setTimeout(() => { printWindow.close(); URL.revokeObjectURL(url); }, 1000);
   };
 }
 
-// --- Final Initialization (Load Entries Again) ---
+// --- Final Initialization ---
 document.addEventListener("DOMContentLoaded", () => {
   loadEntriesFromFirebase();
 });

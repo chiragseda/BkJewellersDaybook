@@ -233,12 +233,22 @@ daybookForm.addEventListener("submit", (e) => {
 
 // --- Add Entry to Table (and optionally save to Firebase) ---
 function addEntryToTable(date, time, description, amount, type, save = true, id = null) {
+  // Determine Debit/Credit based on type.
+  let debit = "";
+  let credit = "";
+  // Original logic: Debit displays expense; Credit displays income.
+  if (type.toLowerCase() === "expense") {
+    debit = `₹${parseFloat(amount).toFixed(2)}`;
+  } else if (type.toLowerCase() === "income") {
+    credit = `₹${parseFloat(amount).toFixed(2)}`;
+  }
+  
   const row = document.createElement("tr");
   row.innerHTML = `
     <td>${date} ${time}</td>
     <td>${description}</td>
-    <td>₹${amount.toFixed(2)}</td>
-    <td>${type}</td>
+    <td style="text-align: right;">${debit}</td>
+    <td style="text-align: right;">${credit}</td>
     <td>
       <button class="edit-btn">Edit</button>
       <button class="delete-btn">Delete</button>
@@ -347,8 +357,8 @@ function printFilteredRecords(records) {
       const amt = parseFloat(rec.amount) || 0;
       totalDebit += amt;
       tableRows += `<tr style="background-color: #f2dede; color: #a94442;">
-                      <td>${rec.date}</td>
-                      <td>${rec.description}</td>
+          <td>${rec.date}</td>
+          <td>${rec.description}</td>
                       <td>₹${amt.toFixed(2)}</td>
                       <td></td>
                     </tr>`;
@@ -356,18 +366,18 @@ function printFilteredRecords(records) {
       const amt = parseFloat(rec.amount) || 0;
       totalCredit += amt;
       tableRows += `<tr style="background-color: #dff0d8; color: #3c763d;">
-                      <td>${rec.date}</td>
-                      <td>${rec.description}</td>
+          <td>${rec.date}</td>
+          <td>${rec.description}</td>
                       <td></td>
                       <td>₹${amt.toFixed(2)}</td>
                     </tr>`;
     } else {
       // Fallback for any other type.
       tableRows += `<tr>
-                      <td>${rec.date}</td>
-                      <td>${rec.description}</td>
-                      <td></td>
-                      <td></td>
+          <td>${rec.date}</td>
+          <td>${rec.description}</td>
+          <td></td>
+          <td></td>
                     </tr>`;
     }
   });

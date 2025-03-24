@@ -144,7 +144,6 @@ function displayTodayEntries() {
 }
 
 function displayPaginatedEntries() {
-  // Only paginate older entries
   const startIndex = (currentPage - 1) * entriesPerPage;
   const endIndex = startIndex + entriesPerPage;
   const paginatedEntries = olderEntries.slice(startIndex, endIndex);
@@ -169,13 +168,11 @@ function loadEntriesFromFirebase() {
       Object.entries(data).forEach(([id, entry]) => {
         const entryDate = entry.date;
         const entryAmount = parseFloat(entry.amount) || 0;
-        // Calculate cash from all entries
         if (entry.type.toLowerCase() === "income") {
           calculatedCash += entryAmount;
         } else if (entry.type.toLowerCase() === "expense") {
           calculatedCash -= entryAmount;
         }
-        // Categorize entries by date
         if (entryDate === currentDate) {
           todayEntries.push({ id, ...entry });
         } else {
@@ -328,7 +325,6 @@ document.getElementById("print-btn").addEventListener("click", () => {
 
 function filterRecordsByDateRange(startDate, endDate, records) {
   return records.filter(record => {
-    // Parse the record date by appending T00:00:00 to enforce local time interpretation.
     const recordDate = new Date(record.date + "T00:00:00");
     return recordDate >= startDate && recordDate <= endDate;
   });
@@ -340,221 +336,114 @@ function printFilteredRecords(records) {
     return;
   }
   
-  // For today's report, if all records are from currentDate, use separate tables.
   const isTodayReport = records.every(record => record.date === currentDate);
-  let printContent = "";
-  let reportHeader = "";
+  // Prepare the single table with 4 columns: Date, Description, Debit, Credit.
+  let tableRows = "";
+  let totalDebit = 0, totalCredit = 0;
   
+  // Build table rows: Expense amounts go in Debit; Income amounts in Credit.
+  records.forEach(rec => {
+    if (rec.type.toLowerCase() === "expense") {
+      const amt = parseFloat(rec.amount) || 0;
+      totalDebit += amt;
+      tableRows += `<tr style="background-color: #f2dede; color: #a94442;">
+                      <td>${rec.date}</td>
+                      <td>${rec.description}</td>
+                      <td>₹${amt.toFixed(2)}</td>
+                      <td></td>
+                    </tr>`;
+    } else if (rec.type.toLowerCase() === "income") {
+      const amt = parseFloat(rec.amount) || 0;
+      totalCredit += amt;
+      tableRows += `<tr style="background-color: #dff0d8; color: #3c763d;">
+                      <td>${rec.date}</td>
+                      <td>${rec.description}</td>
+                      <td></td>
+                      <td>₹${amt.toFixed(2)}</td>
+                    </tr>`;
+    } else {
+      // Fallback for any other type.
+      tableRows += `<tr>
+                      <td>${rec.date}</td>
+                      <td>${rec.description}</td>
+                      <td></td>
+                      <td></td>
+                    </tr>`;
+    }
+  });
+  
+  let summarySection = "";
+  let reportHeader = "";
   if (isTodayReport) {
-    const incomeRecords = records.filter(record => record.type.toLowerCase() === "income");
-    const expenseRecords = records.filter(record => record.type.toLowerCase() === "expense");
-    
-    const todayIncomeTotal = incomeRecords.reduce((sum, rec) => sum + parseFloat(rec.amount), 0);
-    const todayExpenseTotal = expenseRecords.reduce((sum, rec) => sum + parseFloat(rec.amount), 0);
-    
-    // Calculate carry forward from older entries.
+    // For today's report, calculate carry forward from older entries.
     let carryForward = 0;
     olderEntries.forEach(rec => {
-      const amt = parseFloat(rec.amount) || 0;
+      let amt = parseFloat(rec.amount) || 0;
       if (rec.type.toLowerCase() === "income") carryForward += amt;
       else if (rec.type.toLowerCase() === "expense") carryForward -= amt;
     });
-    const netCashInHand = carryForward + (todayIncomeTotal - todayExpenseTotal);
-    
+    const netCashInHand = carryForward + (totalCredit - totalDebit);
     reportHeader = `<h1>BK Jeweller's Daybook - Report for ${currentDate}</h1>`;
-    
-    const incomeTable = `
-      <h2>Debit Transactions</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Description</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${incomeRecords.map(rec => `
-            <tr style="background-color: #dff0d8; color: #3c763d;">
-              <td>${rec.date}</td>
-              <td>${rec.description}</td>
-              <td>₹${parseFloat(rec.amount).toFixed(2)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="2"><strong>Total Income</strong></td>
-            <td><strong>₹${todayIncomeTotal.toFixed(2)}</strong></td>
-          </tr>
-        </tfoot>
-      </table>
-    `;
-    
-    const expenseTable = `
-      <h2>Credit Transactions</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Description</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${expenseRecords.map(rec => `
-            <tr style="background-color: #f2dede; color: #a94442;">
-              <td>${rec.date}</td>
-              <td>${rec.description}</td>
-              <td>₹${parseFloat(rec.amount).toFixed(2)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="2"><strong>Total Expense</strong></td>
-            <td><strong>₹${todayExpenseTotal.toFixed(2)}</strong></td>
-          </tr>
-        </tfoot>
-      </table>
-    `;
-    
-    const summarySection = `
+    summarySection = `
       <div class="totals">
         <p><strong>Carry Forward Cash:</strong> ₹${carryForward.toFixed(2)}</p>
-        <p><strong>Today's Net:</strong> ₹${(todayIncomeTotal - todayExpenseTotal).toFixed(2)}</p>
+        <p><strong>Total Debit:</strong> ₹${totalDebit.toFixed(2)}</p>
+        <p><strong>Total Credit:</strong> ₹${totalCredit.toFixed(2)}</p>
         <p><strong>Total Cash in Hand:</strong> ₹${netCashInHand.toFixed(2)}</p>
       </div>
     `;
-    
-    printContent = `
-      <html>
-        <head>
-        <title>BK Jewellers</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            h1, h2 { text-align: center; color: #d4af37; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            table, th, td { border: 1px solid #d4af37; }
-            th { background-color: #d4af37; color: #fff; padding: 8px; }
-            td { padding: 8px; text-align: left; }
-            tfoot td { border-top: 2px solid #000; }
-            .totals { margin-top: 20px; font-size: 18px; text-align: center; }
-            .totals p { margin: 5px 0; }
-          </style>
-        </head>
-        <body>
-          ${reportHeader}
-          ${incomeTable}
-          ${expenseTable}
-          ${summarySection}
-        </body>
-      </html>
-    `;
-    
   } else {
-    // For custom reports: build two separate tables, similar to today's report.
-    const sortedDates = records.map(record => record.date).sort();
+    // For custom reports, simply calculate net.
+    const net = totalCredit - totalDebit;
+    // Determine the custom date range from the records.
+    const sortedDates = records.map(r => r.date).sort();
     const customStartDate = sortedDates[0];
     const customEndDate = sortedDates[sortedDates.length - 1];
-    const reportHeader = `<h1>BK Jeweller's Daybook - Report (${customStartDate} to ${customEndDate})</h1>`;
-    
-    const incomeRecords = records.filter(record => record.type.toLowerCase() === "income");
-    const expenseRecords = records.filter(record => record.type.toLowerCase() === "expense");
-    
-    const totalIncome = incomeRecords.reduce((sum, rec) => sum + parseFloat(rec.amount), 0);
-    const totalExpense = expenseRecords.reduce((sum, rec) => sum + parseFloat(rec.amount), 0);
-    const netCashInHand = totalIncome - totalExpense;
-    
-    const incomeTable = `
-      <h2>Debit Transactions</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Description</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${incomeRecords.map(rec => `
-            <tr style="background-color: #dff0d8; color: #3c763d;">
-              <td>${rec.date}</td>
-              <td>${rec.description}</td>
-              <td>₹${parseFloat(rec.amount).toFixed(2)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="2"><strong>Total Income</strong></td>
-            <td><strong>₹${totalIncome.toFixed(2)}</strong></td>
-          </tr>
-        </tfoot>
-      </table>
-    `;
-    
-    const expenseTable = `
-      <h2>Credit Transactions</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Description</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${expenseRecords.map(rec => `
-            <tr style="background-color: #f2dede; color: #a94442;">
-              <td>${rec.date}</td>
-              <td>${rec.description}</td>
-              <td>₹${parseFloat(rec.amount).toFixed(2)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="2"><strong>Total Expense</strong></td>
-            <td><strong>₹${totalExpense.toFixed(2)}</strong></td>
-          </tr>
-        </tfoot>
-      </table>
-    `;
-    
-    const summarySection = `
+    reportHeader = `<h1>BK Jeweller's Daybook - Report (${customStartDate} to ${customEndDate})</h1>`;
+    summarySection = `
       <div class="totals">
-        <p><strong>Net Cash in Hand:</strong> ₹${netCashInHand.toFixed(2)}</p>
+        <p><strong>Total Debit:</strong> ₹${totalDebit.toFixed(2)}</p>
+        <p><strong>Total Credit:</strong> ₹${totalCredit.toFixed(2)}</p>
+        <p><strong>Net:</strong> ₹${net.toFixed(2)}</p>
       </div>
-    `;
-    
-    printContent = `
-      <html>
-        <head>
-          <title>BK Jeweller's Daybook</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            h1, h2 { text-align: center; color: #d4af37; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            table, th, td { border: 1px solid #d4af37; }
-            th { background-color: #d4af37; color: #fff; padding: 8px; }
-            td { padding: 8px; text-align: left; }
-            tfoot td { border-top: 2px solid #000; }
-            .totals { margin-top: 20px; font-size: 18px; text-align: center; }
-            .totals p { margin: 5px 0; }
-          </style>
-        </head>
-        <body>
-          ${reportHeader}
-          ${incomeTable}
-          ${expenseTable}
-          ${summarySection}
-        </body>
-      </html>
     `;
   }
   
-  // Create a Blob and generate an object URL.
+  const printContent = `
+    <html>
+      <head>
+        <title>BK Jeweller's Daybook - Print Preview</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          h1 { text-align: center; color: #d4af37; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          table, th, td { border: 1px solid #d4af37; }
+          th { background-color: #d4af37; color: #fff; padding: 8px; }
+          td { padding: 8px; text-align: left; }
+          .totals { margin-top: 20px; font-size: 18px; text-align: center; }
+          .totals p { margin: 5px 0; }
+        </style>
+      </head>
+      <body>
+        ${reportHeader}
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Debit</th>
+              <th>Credit</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+        ${summarySection}
+      </body>
+    </html>
+  `;
+  
   const blob = new Blob([printContent], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const printWindow = window.open(url, '_blank', 'width=800,height=600');
@@ -562,7 +451,6 @@ function printFilteredRecords(records) {
   printWindow.onload = function() {
     printWindow.focus();
     printWindow.print();
-    // Uncomment the below line if you want to auto-close the print preview after printing.
     setTimeout(() => { printWindow.close(); URL.revokeObjectURL(url); }, 1000);
   };
 }

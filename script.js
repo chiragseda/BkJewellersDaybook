@@ -364,7 +364,7 @@ function printFilteredRecords(records) {
     reportHeader = `<h1>BK Jeweller's Daybook - Report for ${currentDate}</h1>`;
     
     const incomeTable = `
-      <h2>Income Transactions</h2>
+      <h2>Debit Transactions</h2>
       <table>
         <thead>
           <tr>
@@ -392,7 +392,7 @@ function printFilteredRecords(records) {
     `;
     
     const expenseTable = `
-      <h2>Expense Transactions</h2>
+      <h2>Credit Transactions</h2>
       <table>
         <thead>
           <tr>
@@ -467,7 +467,7 @@ function printFilteredRecords(records) {
     const netCashInHand = totalIncome - totalExpense;
     
     const incomeTable = `
-      <h2>Income Transactions</h2>
+      <h2>Debit Transactions</h2>
       <table>
         <thead>
           <tr>
@@ -495,7 +495,7 @@ function printFilteredRecords(records) {
     `;
     
     const expenseTable = `
-      <h2>Expense Transactions</h2>
+      <h2>Credit Transactions</h2>
       <table>
         <thead>
           <tr>

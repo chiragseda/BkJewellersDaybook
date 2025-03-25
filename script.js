@@ -30,6 +30,7 @@ let olderEntries = [];
 let filteredEntries = [];
 let currentPage = 1;
 const entriesPerPage = 5;
+let editingEntryId = null;   // <-- Global variable to track the entry being edited  
 
 const tableBody = document.querySelector("#daybook-table tbody");
 const cashInHandDisplay = document.getElementById("cash-in-hand");
@@ -255,7 +256,13 @@ function addEntryToTable(date, time, description, amount, type, save = true, id 
     </td>
   `;
   row.querySelector(".edit-btn").addEventListener("click", () => {
-    editEntry(row, amount, type, id);
+    // When Edit is clicked, populate the form and store the record's ID.
+    const desc = row.children[1].textContent;
+    document.getElementById("description").value = desc;
+    document.getElementById("amount").value = amount;
+    document.getElementById("type").value = type;
+    editingEntryId = id; // Set global editing entry ID for update
+    row.remove();
   });
   row.querySelector(".delete-btn").addEventListener("click", () => {
     if (confirm("Are you sure you want to delete this record?")) {
@@ -269,21 +276,23 @@ function addEntryToTable(date, time, description, amount, type, save = true, id 
   }
 }
 
-// --- Edit Entry ---
-function editEntry(row, oldAmount, oldType, id) {
-  const description = row.children[1].textContent;
-  document.getElementById("description").value = description;
-  document.getElementById("amount").value = oldAmount;
-  document.getElementById("type").value = oldType;
-  row.remove();
-}
-
 // --- Save Entry to Firebase ---
 function saveEntryToFirebase(entry) {
   const daybookRef = db.ref("daybookEntries");
-  daybookRef.push(entry)
-    .then(() => console.log("Entry successfully saved:", entry))
-    .catch((error) => console.error("Error saving entry:", error));
+  if (editingEntryId) {
+    // Update the edited record
+    const entryRef = daybookRef.child(editingEntryId);
+    entryRef.set(entry)
+      .then(() => {
+        console.log("Entry successfully updated:", entry);
+        editingEntryId = null;
+      })
+      .catch((error) => console.error("Error updating entry:", error));
+  } else {
+    daybookRef.push(entry)
+      .then(() => console.log("Entry successfully saved:", entry))
+      .catch((error) => console.error("Error saving entry:", error));
+  }
 }
 
 // --- Delete Entry ---

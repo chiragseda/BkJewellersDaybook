@@ -437,18 +437,34 @@ function printFilteredRecords(records) {
       </div>
     `;
   } else {
-    // For custom reports, simply calculate net.
-    const net = totalCredit - totalDebit;
-    // Determine the custom date range from the records.
-    const sortedDates = records.map(r => r.date).sort();
+    // For a custom report, we first determine the custom date range.
+    const sortedDates = records.map(r => r.date).sort(); // ISO "YYYY-MM-DD" strings sort correctly.
     const customStartDate = sortedDates[0];
     const customEndDate = sortedDates[sortedDates.length - 1];
+    
+    // Calculate carry forward: sum up all entries which occurred before the customStartDate.
+    const allRecords = [...todayEntries, ...olderEntries]; // all available entries
+    let carryForward = 0;
+    allRecords.forEach(rec => {
+      if (rec.date < customStartDate) {
+        const amt = parseFloat(rec.amount) || 0;
+        if (rec.type.toLowerCase() === "income") {
+          carryForward += amt;
+        } else if (rec.type.toLowerCase() === "expense") {
+          carryForward -= amt;
+        }
+      }
+    });
+    
+    // Now calculate the overall net with the carry forward included.
+    const net = carryForward + (totalCredit - totalDebit);
     reportHeader = `<h1>BK Jeweller's Daybook - Report (${customStartDate} to ${customEndDate})</h1>`;
     summarySection = `
       <div class="totals">
+        <p><strong>Carry Forward Cash:</strong> ₹${carryForward.toFixed(2)}</p>
         <p><strong>Total Debit:</strong> ₹${totalDebit.toFixed(2)}</p>
         <p><strong>Total Credit:</strong> ₹${totalCredit.toFixed(2)}</p>
-        <p><strong>Net:</strong> ₹${net.toFixed(2)}</p>
+        <p><strong>Total Cash in Hand:</strong> ₹${net.toFixed(2)}</p>
       </div>
     `;
   }

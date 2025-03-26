@@ -1,3 +1,7 @@
+  // =============================
+// BK Jeweller's Daybook Script
+// =============================
+
 // --- Helper Function: Format Date as "YYYY-MM-DD" ---
 function getFormattedDate(date) {
   const d = new Date(date);
@@ -23,14 +27,20 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// --- Global Variables & DOM Elements ---
+// -------------------------------
+// Global Variables & DOM Elements
+// -------------------------------
 let currentDate = getFormattedDate(new Date());
 let todayEntries = [];
 let olderEntries = [];
 let filteredEntries = [];
 let currentPage = 1;
 const entriesPerPage = 5;
-let editingEntryId = null;   // <-- Global variable to track the entry being edited  
+
+// Global variables for editing functionality:
+let editingEntryId = null;   // Track the entry's ID being edited
+let editingEntryDate = null; // Store original date when editing
+let editingEntryTime = null; // Store original time when editing
 
 const tableBody = document.querySelector("#daybook-table tbody");
 const cashInHandDisplay = document.getElementById("cash-in-hand");
@@ -226,31 +236,11 @@ nextPageBtn.addEventListener("click", () => {
   }
 });
 
-// --- Daybook Form Submission ---
-daybookForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const description = document.getElementById("description").value.trim();
-  const amount = parseFloat(document.getElementById("amount").value);
-  const type = document.getElementById("type").value;
-  if (description && !isNaN(amount) && type) {
-    const now = new Date();
-    const date = getFormattedDate(now);
-    const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const newEntry = { date, time, description, amount, type };
-    console.log("Submitting new entry:", newEntry);
-    addEntryToTable(date, time, description, amount, type, true);
-    daybookForm.reset();
-  } else {
-    alert("Please fill out all fields correctly!");
-  }
-});
-
 // --- Add Entry to Table (and optionally save to Firebase) ---
 function addEntryToTable(date, time, description, amount, type, save = true, id = null) {
   // Determine Debit/Credit based on type.
   let debit = "";
   let credit = "";
-  // Original logic: Debit displays expense; Credit displays income.
   if (type.toLowerCase() === "expense") {
     debit = `₹${parseFloat(amount).toFixed(2)}`;
   } else if (type.toLowerCase() === "income") {
@@ -268,10 +258,17 @@ function addEntryToTable(date, time, description, amount, type, save = true, id 
       <button class="delete-btn">Delete</button>
     </td>
   `;
+  
+  // --- Edit Button Listener ---
   row.querySelector(".edit-btn").addEventListener("click", () => {
-    // When Edit is clicked, populate the form and store the record's ID.
-    const desc = row.children[1].textContent;
-    document.getElementById("description").value = desc;
+    // Save original date and time from the row so they don't update upon edit.
+    const dateTimeText = row.children[0].textContent; // e.g., "2023-10-15 09:30"
+    const parts = dateTimeText.split(" ");
+    editingEntryDate = parts[0];
+    editingEntryTime = parts.slice(1).join(" "); // In case time contains spaces
+
+    // Populate form fields with existing values.
+    document.getElementById("description").value = row.children[1].textContent;
     document.getElementById("amount").value = amount;
     document.getElementById("type").value = type;
     editingEntryId = id; // Set global editing entry ID for update
@@ -299,6 +296,8 @@ function saveEntryToFirebase(entry) {
       .then(() => {
         console.log("Entry successfully updated:", entry);
         editingEntryId = null;
+        editingEntryDate = null;
+        editingEntryTime = null;
       })
       .catch((error) => console.error("Error updating entry:", error));
   } else {
@@ -319,21 +318,34 @@ function deleteEntry(row, amount, type, id) {
   }
 }
 
-// --- PRINT FUNCTIONALITY ---
-function attachPrintOptionListeners() {
-  const printOptionRadios = document.querySelectorAll('input[name="print-option"]');
-  const dateInputs = document.querySelector(".date-inputs");
-  printOptionRadios.forEach((radio) => {
-    radio.addEventListener("change", (e) => {
-      if (e.target.value === "custom") {
-        dateInputs.style.display = "block";
-      } else {
-        dateInputs.style.display = "none";
-      }
-    });
-  });
-}
+// --- Daybook Form Submission ---
+daybookForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const description = document.getElementById("description").value.trim();
+  const amount = parseFloat(document.getElementById("amount").value);
+  const type = document.getElementById("type").value;
+  if (description && !isNaN(amount) && type) {
+    const now = new Date();
+    // If editing, retain the original date and time; otherwise, use current.
+    const date = editingEntryId ? editingEntryDate : getFormattedDate(now);
+    const time = editingEntryId ? editingEntryTime : now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const newEntry = { date, time, description, amount, type };
+    console.log("Submitting new entry:", newEntry);
+    
+    // Call addEntryToTable to both update UI and save to Firebase.
+    addEntryToTable(date, time, description, amount, type, true, editingEntryId);
+    
+    daybookForm.reset();
+    // Reset editing globals post submission.
+    editingEntryId = null;
+    editingEntryDate = null;
+    editingEntryTime = null;
+  } else {
+    alert("Please fill out all fields correctly!");
+  }
+});
 
+// --- PRINT FUNCTIONALITY ---
 document.getElementById("print-btn").addEventListener("click", () => {
   const selectedOption = document.querySelector('input[name="print-option"]:checked').value;
   let filteredRecords = [];
@@ -381,18 +393,18 @@ function printFilteredRecords(records) {
       tableRows += `<tr style="background-color: #f2dede; color: #a94442;">
           <td>${rec.date}</td>
           <td>${rec.description}</td>
-                      <td>₹${amt.toFixed(2)}</td>
-                      <td></td>
-                    </tr>`;
+          <td>₹${amt.toFixed(2)}</td>
+          <td></td>
+        </tr>`;
     } else if (rec.type.toLowerCase() === "income") {
       const amt = parseFloat(rec.amount) || 0;
       totalCredit += amt;
       tableRows += `<tr style="background-color: #dff0d8; color: #3c763d;">
           <td>${rec.date}</td>
           <td>${rec.description}</td>
-                      <td></td>
-                      <td>₹${amt.toFixed(2)}</td>
-                    </tr>`;
+          <td></td>
+          <td>₹${amt.toFixed(2)}</td>
+        </tr>`;
     } else {
       // Fallback for any other type.
       tableRows += `<tr>
@@ -400,7 +412,7 @@ function printFilteredRecords(records) {
           <td>${rec.description}</td>
           <td></td>
           <td></td>
-                    </tr>`;
+        </tr>`;
     }
   });
   
@@ -444,7 +456,7 @@ function printFilteredRecords(records) {
   const printContent = `
     <html>
       <head>
-        <title>BK Jeweller's Daybook - Print Preview</title>
+        <title>BK Jeweller's Daybook</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 20px; }
           h1 { text-align: center; color: #d4af37; }

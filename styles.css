@@ -143,3 +143,32 @@ td {
         white-space: nowrap; /* Prevent text wrapping in cells */
     }
 }
+@media (max-width: 600px) {
+    header {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    /* Remove absolute positioning for the hamburger icon on small screens */
+    .menu-icon {
+      position: static;
+      margin-bottom: 10px;
+    }
+  
+    /* Adjust the title so it sits nicely below the icon */
+    header h1 {
+      font-size: 1.2rem;
+      margin: 10px 0;
+      flex: unset;
+      white-space: nowrap; /* Prevents the title from wrapping awkwardly */
+    }
+    
+    /* Place the logout button below the title and center it */
+    #logout-btn {
+      margin: 10px 0;
+      padding: 6px 12px;
+      font-size: 0.9rem;
+    }
+  }
+  

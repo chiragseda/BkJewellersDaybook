@@ -166,29 +166,42 @@ function loadEntriesFromFirebase() {
     filteredEntries = [];
     let calculatedCash = 0;
     if (data) {
-      Object.entries(data).forEach(([id, entry]) => {
-        const entryDate = entry.date;
+      const entriesArray = Object.entries(data).map(([id, entry]) => ({
+        id,
+        ...entry,
+      }));
+
+      // Sort entriesArray by date and time in descending order
+      entriesArray.sort((a, b) => {
+        const dateA = new Date(a.date + " " + a.time);
+        const dateB = new Date(b.date + " " + b.time);
+        return dateB - dateA; // Descending order
+      });
+
+      // Separate todayEntries and olderEntries after sorting
+      entriesArray.forEach((entry) => {
         const entryAmount = parseFloat(entry.amount) || 0;
         if (entry.type.toLowerCase() === "income") {
           calculatedCash += entryAmount;
         } else if (entry.type.toLowerCase() === "expense") {
           calculatedCash -= entryAmount;
         }
-        if (entryDate === currentDate) {
-          todayEntries.push({ id, ...entry });
+
+        if (entry.date === currentDate) {
+          todayEntries.push(entry);
         } else {
-          olderEntries.push({ id, ...entry });
+          olderEntries.push(entry);
         }
       });
     }
     cashInHandDisplay.textContent = calculatedCash.toFixed(2);
     filteredEntries = [...todayEntries, ...olderEntries];
     if (searchBarInput.value.trim() === "") {
-      displayTodayEntries();
+      displayTodayEntries(); // Sorted today's entries
       currentPage = 1;
-      displayPaginatedEntries();
+      displayPaginatedEntries(); // Sorted older entries in paginated view
     } else {
-      displayFilteredEntries();
+      displayFilteredEntries(); // Apply sorting to filtered entries too
     }
   });
 }
